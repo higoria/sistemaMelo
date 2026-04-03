@@ -1,0 +1,40 @@
+import { NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+
+export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getServerSession(authOptions)
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { id } = await params
+  const body = await request.json()
+
+  const data: Record<string, unknown> = {}
+  if (body.title !== undefined) data.title = body.title
+  if (body.description !== undefined) data.description = body.description
+  if (body.dueDate !== undefined) data.dueDate = body.dueDate ? new Date(body.dueDate) : null
+  if (body.isPriorityToday !== undefined) data.isPriorityToday = body.isPriorityToday
+  if (body.columnId !== undefined) data.columnId = body.columnId
+  if (body.order !== undefined) data.order = body.order
+
+  const task = await prisma.task.update({
+    where: { id },
+    data,
+  })
+
+  return NextResponse.json(task)
+}
+
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getServerSession(authOptions)
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { id } = await params
+
+  await prisma.task.delete({
+    where: { id },
+  })
+
+  return NextResponse.json({ success: true })
+}
