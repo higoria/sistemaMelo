@@ -33,7 +33,11 @@ model Task {
   columnId        String
   column          Column    @relation(fields: [columnId], references: [id], onDelete: Cascade)
   order           Int
+  source          String    @default("kanban")
+  assignee        String?
+  logoUrl         String?
   createdAt       DateTime  @default(now())
+  completedAt     DateTime?
   tags            TaskTag[]
 }
 

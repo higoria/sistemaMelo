@@ -10,6 +10,7 @@ export async function GET() {
   const columns = await prisma.column.findMany({
     include: {
       tasks: {
+        where: { source: 'kanban' } as object,
         orderBy: { order: 'asc' },
       },
     },

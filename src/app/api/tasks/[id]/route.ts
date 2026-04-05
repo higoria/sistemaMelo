@@ -17,6 +17,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   if (body.isPriorityToday !== undefined) data.isPriorityToday = body.isPriorityToday
   if (body.columnId !== undefined) data.columnId = body.columnId
   if (body.order !== undefined) data.order = body.order
+  if (body.completedAt !== undefined) data.completedAt = body.completedAt ? new Date(body.completedAt) : null
+  if (body.logoUrl !== undefined) data.logoUrl = body.logoUrl
+  if (body.assignee !== undefined) data.assignee = body.assignee
 
   const task = await prisma.task.update({
     where: { id },

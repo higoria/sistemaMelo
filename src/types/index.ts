@@ -6,7 +6,11 @@ export interface Task {
   isPriorityToday: boolean
   columnId: string
   order: number
+  source: string
+  assignee: string | null
+  logoUrl: string | null
   createdAt: string
+  completedAt: string | null
 }
 
 export interface Column {

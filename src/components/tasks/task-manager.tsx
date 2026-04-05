@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { useAllTasks, useCreateTask, useUpdateTask, useDeleteTask, useColumns } from '@/hooks/api'
+import { useAllTasks, useCreateTask, useUpdateTask, useDeleteTask, useColumns, useCompletedTasks } from '@/hooks/api'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
@@ -17,10 +17,16 @@ import {
   ClipboardList,
   Flame,
   FileText,
+  CheckCircle2,
+  History,
+  ChevronDown,
+  ChevronUp,
+  Check,
 } from 'lucide-react'
 
 export function TaskManager() {
   const { data: tasks, isLoading: tasksLoading } = useAllTasks()
+  const { data: completedTasks, isLoading: historyLoading } = useCompletedTasks()
   const { data: columns } = useColumns()
   const createTask = useCreateTask()
   const updateTask = useUpdateTask()
@@ -30,7 +36,11 @@ export function TaskManager() {
   const [description, setDescription] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [isPriority, setIsPriority] = useState(false)
+  const [assignee, setAssignee] = useState('')
   const [sortBy, setSortBy] = useState<'created' | 'dueDate'>('created')
+  const [historyOpen, setHistoryOpen] = useState(false)
+
+  const ASSIGNEES = ['Eduardo', 'Gustavo', 'Henrique']
 
   const defaultColumnId = columns?.[0]?.id || ''
 
@@ -44,12 +54,15 @@ export function TaskManager() {
       dueDate: dueDate || undefined,
       isPriorityToday: isPriority,
       columnId: defaultColumnId,
-    })
+      source: 'tasks',
+      assignee: assignee || null,
+    } as any)
 
     setTitle('')
     setDescription('')
     setDueDate('')
     setIsPriority(false)
+    setAssignee('')
   }
 
   const allTasks = useMemo(() => {
@@ -67,9 +80,13 @@ export function TaskManager() {
     return sorted
   }, [tasks, sortBy])
 
-  const priorityTasks = useMemo(() => {
-    return allTasks.filter((t) => t.isPriorityToday)
-  }, [allTasks])
+  const queueTasks = useMemo(() => allTasks.filter(t => !t.isPriorityToday), [allTasks])
+  const priorityTasks = useMemo(() => allTasks.filter(t => t.isPriorityToday), [allTasks])
+
+  const handleComplete = (task: Task) => {
+    updateTask.mutate({ id: task.id, completedAt: new Date().toISOString() })
+    setHistoryOpen(true)
+  }
 
   if (tasksLoading) {
     return (
@@ -83,8 +100,9 @@ export function TaskManager() {
   }
 
   return (
-    <div className="flex-1 p-6 overflow-hidden">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
+    <div className="flex-1 p-6 overflow-y-auto">
+      {/* 3-column grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[500px]">
         {/* Column 1: Form */}
         <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 space-y-6">
           <div className="flex items-center gap-3">
@@ -136,6 +154,39 @@ export function TaskManager() {
               />
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="taskAssignee" className="text-slate-300 text-sm font-medium">
+                Responsável
+              </Label>
+              <div className="grid grid-cols-4 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAssignee('')}
+                  className={`h-10 rounded-xl text-xs font-medium border cursor-pointer transition-colors ${
+                    assignee === ''
+                      ? 'bg-slate-600 border-slate-500 text-white'
+                      : 'bg-white/[0.03] border-white/[0.08] text-slate-500 hover:border-white/[0.2] hover:text-slate-300'
+                  }`}
+                >
+                  Nenhum
+                </button>
+                {ASSIGNEES.map((name) => (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => setAssignee(name)}
+                    className={`h-10 rounded-xl text-xs font-medium border cursor-pointer transition-colors ${
+                      assignee === name
+                        ? 'bg-blue-600 border-blue-500 text-white'
+                        : 'bg-white/[0.03] border-white/[0.08] text-slate-400 hover:border-blue-500/40 hover:text-white'
+                    }`}
+                  >
+                    {name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="flex items-center gap-3 p-3.5 rounded-xl bg-amber-500/[0.08] border border-amber-500/15">
               <Checkbox
                 id="taskPriority"
@@ -173,7 +224,7 @@ export function TaskManager() {
               </div>
               <div>
                 <h2 className="text-lg font-semibold text-white" style={{ fontFamily: 'var(--font-heading)' }}>Fila de Tarefas</h2>
-                <p className="text-xs text-slate-500 font-medium">{allTasks.length} tarefas</p>
+                <p className="text-xs text-slate-500 font-medium">{queueTasks.length} tarefas</p>
               </div>
             </div>
             <button
@@ -186,18 +237,19 @@ export function TaskManager() {
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
-            {allTasks.length === 0 ? (
+            {queueTasks.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-40 text-slate-600">
                 <FileText className="w-10 h-10 mb-2" />
                 <p className="text-sm font-medium">Nenhuma tarefa criada</p>
               </div>
             ) : (
-              allTasks.map((task) => (
+              queueTasks.map((task) => (
                 <TaskQueueItem
                   key={task.id}
                   task={task}
                   onTogglePriority={() => updateTask.mutate({ id: task.id, isPriorityToday: !task.isPriorityToday })}
                   onDelete={() => deleteTask.mutate(task.id)}
+                  onComplete={() => handleComplete(task)}
                 />
               ))
             )}
@@ -232,11 +284,61 @@ export function TaskManager() {
                   isPriorityView
                   onTogglePriority={() => updateTask.mutate({ id: task.id, isPriorityToday: false })}
                   onDelete={() => deleteTask.mutate(task.id)}
+                  onComplete={() => handleComplete(task)}
                 />
               ))
             )}
           </div>
         </div>
+      </div>
+
+      {/* History Section */}
+      <div className="mt-6 rounded-2xl border border-white/[0.07] bg-white/[0.02] overflow-hidden">
+        <button
+          onClick={() => setHistoryOpen(!historyOpen)}
+          className="w-full p-5 flex items-center justify-between hover:bg-white/[0.02] cursor-pointer"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-green-500/10 flex items-center justify-center ring-1 ring-emerald-500/20">
+              <History className="w-5 h-5 text-emerald-400" />
+            </div>
+            <div className="text-left">
+              <h2 className="text-lg font-semibold text-white" style={{ fontFamily: 'var(--font-heading)' }}>
+                Histórico
+              </h2>
+              <p className="text-xs text-slate-500 font-medium">
+                Tarefas concluídas nos últimos 30 dias
+                {completedTasks && ` · ${completedTasks.length} tarefas`}
+              </p>
+            </div>
+          </div>
+          {historyOpen ? (
+            <ChevronUp className="w-5 h-5 text-slate-400" />
+          ) : (
+            <ChevronDown className="w-5 h-5 text-slate-400" />
+          )}
+        </button>
+
+        {historyOpen && (
+          <div className="border-t border-white/[0.07] p-4">
+            {historyLoading ? (
+              <div className="flex items-center justify-center py-10">
+                <Loader2 className="w-6 h-6 text-emerald-400 animate-spin" />
+              </div>
+            ) : !completedTasks || completedTasks.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-slate-600">
+                <CheckCircle2 className="w-10 h-10 mb-2" />
+                <p className="text-sm font-medium">Nenhuma tarefa concluída nos últimos 30 dias</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                {completedTasks.map((task) => (
+                  <HistoryItem key={task.id} task={task} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -247,11 +349,13 @@ function TaskQueueItem({
   isPriorityView,
   onTogglePriority,
   onDelete,
+  onComplete,
 }: {
   task: Task
   isPriorityView?: boolean
   onTogglePriority: () => void
   onDelete: () => void
+  onComplete: () => void
 }) {
   const dueDate = task.dueDate ? new Date(task.dueDate) : null
   const isOverdue = dueDate && dueDate < new Date()
@@ -266,9 +370,9 @@ function TaskQueueItem({
     `}>
       <div className="flex items-start gap-3">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-slate-100 truncate">{task.title}</p>
+          <p className="text-base font-semibold text-white leading-snug">{task.title}</p>
           {task.description && (
-            <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{task.description}</p>
+            <p className="text-xs text-slate-300 mt-0.5 leading-relaxed break-words whitespace-pre-wrap">{task.description}</p>
           )}
           <div className="flex items-center gap-2 mt-2">
             {dueDate && (
@@ -284,10 +388,22 @@ function TaskQueueItem({
                 <Star className="w-3 h-3 fill-current" />
               </span>
             )}
+            {task.assignee && (
+              <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400">
+                {task.assignee}
+              </span>
+            )}
           </div>
         </div>
 
         <div className="flex gap-1 opacity-0 group-hover:opacity-100 shrink-0">
+          <button
+            onClick={onComplete}
+            className="p-1.5 rounded-lg text-slate-600 hover:text-emerald-400 hover:bg-emerald-500/10 cursor-pointer"
+            title="Marcar como concluída"
+          >
+            <Check className="w-4 h-4" />
+          </button>
           <button
             onClick={onTogglePriority}
             className={`p-1.5 rounded-lg cursor-pointer ${
@@ -306,6 +422,39 @@ function TaskQueueItem({
           >
             <Trash2 className="w-4 h-4" />
           </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function HistoryItem({ task }: { task: Task }) {
+  const completedAt = task.completedAt ? new Date(task.completedAt) : null
+  const dueDate = task.dueDate ? new Date(task.dueDate) : null
+
+  return (
+    <div className="p-3.5 rounded-xl border border-emerald-500/10 bg-emerald-500/[0.03]">
+      <div className="flex items-start gap-2.5">
+        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-slate-300 truncate line-through decoration-slate-600">{task.title}</p>
+          {task.description && (
+            <p className="text-xs text-slate-600 mt-0.5 line-clamp-1">{task.description}</p>
+          )}
+          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+            {completedAt && (
+              <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-500/70">
+                <Check className="w-3 h-3" />
+                {completedAt.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+              </span>
+            )}
+            {dueDate && (
+              <span className="flex items-center gap-1 text-[11px] text-slate-600">
+                <Calendar className="w-3 h-3" />
+                {dueDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </div>

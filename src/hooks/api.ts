@@ -127,6 +127,7 @@ export function useUpdateTask() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['columns'] })
       qc.invalidateQueries({ queryKey: ['tasks'] })
+      qc.invalidateQueries({ queryKey: ['tasks-history'] })
     },
   })
 }
@@ -142,6 +143,17 @@ export function useDeleteTask() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['columns'] })
       qc.invalidateQueries({ queryKey: ['tasks'] })
+    },
+  })
+}
+
+export function useCompletedTasks() {
+  return useQuery<Task[]>({
+    queryKey: ['tasks-history'],
+    queryFn: async () => {
+      const res = await fetch('/api/tasks/history')
+      if (!res.ok) throw new Error('Failed to fetch history')
+      return res.json()
     },
   })
 }

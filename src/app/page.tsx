@@ -46,7 +46,7 @@ export default function HomePage() {
                 `}
               >
                 <LayoutDashboard className="w-4 h-4" />
-                Kanban
+                Processos
               </button>
               <button
                 onClick={() => setActiveTab('tasks')}

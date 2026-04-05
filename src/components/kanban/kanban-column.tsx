@@ -7,7 +7,7 @@ import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-
 import { CSS } from '@dnd-kit/utilities'
 import { TaskCard } from './task-card'
 import { useCreateTask, useDeleteColumn, useUpdateColumn } from '@/hooks/api'
-import { Plus, MoreHorizontal, Trash2, Pencil, GripVertical, Check, X } from 'lucide-react'
+import { Plus, MoreHorizontal, Trash2, Pencil, GripVertical, Check, X, ImagePlus } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
@@ -24,6 +24,8 @@ interface KanbanColumnProps {
 export function KanbanColumn({ column }: KanbanColumnProps) {
   const [isAddingTask, setIsAddingTask] = useState(false)
   const [newTaskTitle, setNewTaskTitle] = useState('')
+  const [newTaskLogo, setNewTaskLogo] = useState<string | null>(null)
+  const [newTaskDueDate, setNewTaskDueDate] = useState('')
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [editTitle, setEditTitle] = useState(column.title)
 
@@ -53,13 +55,26 @@ export function KanbanColumn({ column }: KanbanColumnProps) {
     transition,
   }
 
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => setNewTaskLogo(reader.result as string)
+    reader.readAsDataURL(file)
+  }
+
   const handleAddTask = () => {
     if (newTaskTitle.trim()) {
       createTask.mutate({
         title: newTaskTitle.trim(),
         columnId: column.id,
-      })
+        dueDate: newTaskDueDate || undefined,
+        logoUrl: newTaskLogo || undefined,
+        source: 'kanban',
+      } as any)
       setNewTaskTitle('')
+      setNewTaskLogo(null)
+      setNewTaskDueDate('')
       setIsAddingTask(false)
     }
   }
@@ -165,7 +180,7 @@ export function KanbanColumn({ column }: KanbanColumnProps) {
 
         {column.tasks.length === 0 && !isAddingTask && (
           <div className="flex items-center justify-center h-20 text-slate-600 text-sm">
-            Nenhuma tarefa
+            Nenhum cliente
           </div>
         )}
       </div>
@@ -179,12 +194,36 @@ export function KanbanColumn({ column }: KanbanColumnProps) {
               onChange={(e) => setNewTaskTitle(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleAddTask()
-                if (e.key === 'Escape') { setIsAddingTask(false); setNewTaskTitle('') }
+                if (e.key === 'Escape') { setIsAddingTask(false); setNewTaskTitle(''); setNewTaskLogo(null); setNewTaskDueDate('') }
               }}
-              placeholder="Nome da tarefa..."
+              placeholder="Nome do cliente..."
               autoFocus
               className="bg-white/[0.04] border-white/[0.1] text-white placeholder:text-slate-600 text-sm rounded-xl"
             />
+
+            {/* Logo upload */}
+            <div className="flex items-center gap-2.5">
+              <label className="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.1] hover:border-white/[0.2] text-slate-400 hover:text-white text-xs font-medium w-full">
+                <ImagePlus className="w-3.5 h-3.5 shrink-0" />
+                {newTaskLogo ? 'Trocar logo' : 'Adicionar logo'}
+                <input type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
+              </label>
+              {newTaskLogo && (
+                <img src={newTaskLogo} alt="logo preview" className="w-8 h-8 rounded-lg object-cover border border-white/[0.1] shrink-0" />
+              )}
+            </div>
+
+            {/* Contract end date */}
+            <div>
+              <label className="text-[11px] text-slate-500 font-medium mb-1 block">Encerramento do contrato</label>
+              <Input
+                type="date"
+                value={newTaskDueDate}
+                onChange={(e) => setNewTaskDueDate(e.target.value)}
+                className="bg-white/[0.04] border-white/[0.1] text-white [color-scheme:dark] text-sm rounded-xl h-9"
+              />
+            </div>
+
             <div className="flex gap-2">
               <Button
                 size="sm"
@@ -196,7 +235,7 @@ export function KanbanColumn({ column }: KanbanColumnProps) {
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => { setIsAddingTask(false); setNewTaskTitle('') }}
+                onClick={() => { setIsAddingTask(false); setNewTaskTitle(''); setNewTaskLogo(null); setNewTaskDueDate('') }}
                 className="text-slate-500 hover:text-white text-xs cursor-pointer"
               >
                 Cancelar
@@ -209,7 +248,7 @@ export function KanbanColumn({ column }: KanbanColumnProps) {
             className="flex items-center gap-2 w-full p-2.5 rounded-xl text-slate-500 hover:text-white hover:bg-white/[0.04] cursor-pointer text-sm font-medium"
           >
             <Plus className="w-4 h-4" />
-            Nova tarefa
+            Novo cliente
           </button>
         )}
       </div>

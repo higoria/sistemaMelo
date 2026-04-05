@@ -15,8 +15,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "SistemaMelo — Kanban",
-  description: "Sistema interno de gestão de tarefas no estilo Kanban",
+  title: "SistemaMelo — Processos",
+  description: "Sistema interno de gestão de tarefas no estilo Processos",
 };
 
 export default function RootLayout({
