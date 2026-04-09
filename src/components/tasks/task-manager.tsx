@@ -22,7 +22,28 @@ import {
   ChevronDown,
   ChevronUp,
   Check,
+  Pencil,
+  X,
+  Save,
 } from 'lucide-react'
+
+// Converte string "YYYY-MM-DD" para Date sem perder um dia por timezone
+function parseDateLocal(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number)
+  return new Date(year, month - 1, day, 12, 0, 0)
+}
+
+// Converte Date para string "YYYY-MM-DD" para preencher input[type=date]
+function toDateInputValue(date: Date | string | null | undefined): string {
+  if (!date) return ''
+  const d = typeof date === 'string' ? new Date(date) : date
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate() + 1).padStart(2, '0') // +1 compensa o UTC shift na leitura
+  return `${y}-${m}-${day}`
+}
+
+const ASSIGNEES = ['Eduardo', 'Gustavo', 'Henrique']
 
 export function TaskManager() {
   const { data: tasks, isLoading: tasksLoading } = useAllTasks()
@@ -40,8 +61,6 @@ export function TaskManager() {
   const [sortBy, setSortBy] = useState<'created' | 'dueDate'>('created')
   const [historyOpen, setHistoryOpen] = useState(false)
 
-  const ASSIGNEES = ['Eduardo', 'Gustavo', 'Henrique']
-
   const defaultColumnId = columns?.[0]?.id || ''
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -51,7 +70,8 @@ export function TaskManager() {
     createTask.mutate({
       title: title.trim(),
       description: description.trim() || undefined,
-      dueDate: dueDate || undefined,
+      // Envia como ISO mas ajustado para horário local (meio-dia) evitando shift
+      dueDate: dueDate ? parseDateLocal(dueDate).toISOString() : undefined,
       isPriorityToday: isPriority,
       columnId: defaultColumnId,
       source: 'tasks',
@@ -75,7 +95,7 @@ export function TaskManager() {
         return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
       })
     } else {
-      sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      sorted.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
     }
     return sorted
   }, [tasks, sortBy])
@@ -250,6 +270,7 @@ export function TaskManager() {
                   onTogglePriority={() => updateTask.mutate({ id: task.id, isPriorityToday: !task.isPriorityToday })}
                   onDelete={() => deleteTask.mutate(task.id)}
                   onComplete={() => handleComplete(task)}
+                  onEdit={(data) => updateTask.mutate({ id: task.id, ...data })}
                 />
               ))
             )}
@@ -285,6 +306,7 @@ export function TaskManager() {
                   onTogglePriority={() => updateTask.mutate({ id: task.id, isPriorityToday: false })}
                   onDelete={() => deleteTask.mutate(task.id)}
                   onComplete={() => handleComplete(task)}
+                  onEdit={(data) => updateTask.mutate({ id: task.id, ...data })}
                 />
               ))
             )}
@@ -344,21 +366,113 @@ export function TaskManager() {
   )
 }
 
+// ──────────────────────────────────────────────────────────
+// TaskQueueItem com modal de edição inline
+// ──────────────────────────────────────────────────────────
 function TaskQueueItem({
   task,
   isPriorityView,
   onTogglePriority,
   onDelete,
   onComplete,
+  onEdit,
 }: {
   task: Task
   isPriorityView?: boolean
   onTogglePriority: () => void
   onDelete: () => void
   onComplete: () => void
+  onEdit: (data: { title: string; description?: string; dueDate?: string; assignee?: string | null }) => void
 }) {
+  const [editing, setEditing] = useState(false)
+  const [editTitle, setEditTitle] = useState(task.title)
+  const [editDesc, setEditDesc] = useState(task.description || '')
+  const [editDue, setEditDue] = useState(toDateInputValue(task.dueDate))
+  const [editAssignee, setEditAssignee] = useState(task.assignee || '')
+
   const dueDate = task.dueDate ? new Date(task.dueDate) : null
   const isOverdue = dueDate && dueDate < new Date()
+
+  const openEdit = () => {
+    setEditTitle(task.title)
+    setEditDesc(task.description || '')
+    setEditDue(toDateInputValue(task.dueDate))
+    setEditAssignee(task.assignee || '')
+    setEditing(true)
+  }
+
+  const saveEdit = () => {
+    if (!editTitle.trim()) return
+    onEdit({
+      title: editTitle.trim(),
+      description: editDesc.trim() || undefined,
+      dueDate: editDue ? parseDateLocal(editDue).toISOString() : undefined,
+      assignee: editAssignee || null,
+    })
+    setEditing(false)
+  }
+
+  if (editing) {
+    return (
+      <div className={`p-3.5 rounded-xl border space-y-3 ${
+        isPriorityView
+          ? 'bg-amber-500/[0.07] border-amber-500/20'
+          : 'bg-blue-500/[0.05] border-blue-500/20'
+      }`}>
+        {/* Título */}
+        <Input
+          value={editTitle}
+          onChange={(e) => setEditTitle(e.target.value)}
+          placeholder="Nome da tarefa..."
+          className="bg-white/[0.05] border-white/[0.12] text-white placeholder:text-slate-600 rounded-lg h-9 text-sm"
+        />
+
+        {/* Descrição */}
+        <textarea
+          value={editDesc}
+          onChange={(e) => setEditDesc(e.target.value)}
+          placeholder="Descrição..."
+          rows={2}
+          className="w-full rounded-lg bg-white/[0.04] border border-white/[0.1] text-white placeholder:text-slate-600 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500/30 resize-none"
+        />
+
+        {/* Data + Responsável */}
+        <div className="flex items-center gap-2">
+          <Input
+            type="date"
+            value={editDue}
+            onChange={(e) => setEditDue(e.target.value)}
+            className="bg-white/[0.04] border-white/[0.1] text-white [color-scheme:dark] rounded-lg h-8 text-xs flex-1"
+          />
+          <select
+            value={editAssignee}
+            onChange={(e) => setEditAssignee(e.target.value)}
+            className="flex-1 h-8 rounded-lg bg-white/[0.04] border border-white/[0.1] text-white text-xs px-2 focus:outline-none focus:ring-1 focus:ring-blue-500/30"
+          >
+            <option value="">Nenhum</option>
+            {ASSIGNEES.map(n => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </div>
+
+        {/* Botões */}
+        <div className="flex gap-2">
+          <button
+            onClick={saveEdit}
+            disabled={!editTitle.trim()}
+            className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-colors cursor-pointer disabled:opacity-40"
+          >
+            <Save className="w-3.5 h-3.5" /> Salvar
+          </button>
+          <button
+            onClick={() => setEditing(false)}
+            className="flex items-center justify-center gap-1.5 px-3 h-8 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-slate-400 text-xs font-medium transition-colors cursor-pointer"
+          >
+            <X className="w-3.5 h-3.5" /> Cancelar
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className={`
@@ -403,6 +517,13 @@ function TaskQueueItem({
             title="Marcar como concluída"
           >
             <Check className="w-4 h-4" />
+          </button>
+          <button
+            onClick={openEdit}
+            className="p-1.5 rounded-lg text-slate-600 hover:text-blue-400 hover:bg-blue-500/10 cursor-pointer"
+            title="Editar tarefa"
+          >
+            <Pencil className="w-4 h-4" />
           </button>
           <button
             onClick={onTogglePriority}

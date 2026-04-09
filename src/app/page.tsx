@@ -4,10 +4,11 @@ import { useState } from 'react'
 import { signOut, useSession } from 'next-auth/react'
 import { KanbanBoard } from '@/components/kanban/kanban-board'
 import { TaskManager } from '@/components/tasks/task-manager'
-import { LayoutDashboard, ClipboardList, LogOut, User } from 'lucide-react'
+import { DashboardView } from '@/components/dashboard/dashboard-view'
+import { LayoutDashboard, ClipboardList, LogOut, User, BarChart } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-type ActiveTab = 'kanban' | 'tasks'
+type ActiveTab = 'kanban' | 'tasks' | 'dashboard'
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('kanban')
@@ -61,6 +62,19 @@ export default function HomePage() {
                 <ClipboardList className="w-4 h-4" />
                 Gestão de Tarefas
               </button>
+              <button
+                onClick={() => setActiveTab('dashboard')}
+                className={`
+                  flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer
+                  ${activeTab === 'dashboard'
+                    ? 'bg-gradient-to-r from-blue-600/90 to-indigo-600/90 text-white shadow-lg shadow-blue-500/20'
+                    : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
+                  }
+                `}
+              >
+                <BarChart className="w-4 h-4" />
+                Dashboard
+              </button>
             </nav>
           </div>
 
@@ -88,7 +102,9 @@ export default function HomePage() {
 
       {/* Content */}
       <main className="flex-1 flex flex-col overflow-hidden relative">
-        {activeTab === 'kanban' ? <KanbanBoard /> : <TaskManager />}
+        {activeTab === 'kanban' && <KanbanBoard />}
+        {activeTab === 'tasks' && <TaskManager />}
+        {activeTab === 'dashboard' && <DashboardView />}
       </main>
     </div>
   )

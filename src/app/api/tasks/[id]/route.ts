@@ -20,6 +20,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   if (body.completedAt !== undefined) data.completedAt = body.completedAt ? new Date(body.completedAt) : null
   if (body.logoUrl !== undefined) data.logoUrl = body.logoUrl
   if (body.assignee !== undefined) data.assignee = body.assignee
+  if (body.notes !== undefined) data.notes = body.notes
 
   const task = await prisma.task.update({
     where: { id },

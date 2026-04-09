@@ -9,6 +9,7 @@ export interface Task {
   source: string
   assignee: string | null
   logoUrl: string | null
+  notes: string | null
   createdAt: string
   completedAt: string | null
 }

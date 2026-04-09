@@ -36,6 +36,7 @@ model Task {
   source          String    @default("kanban")
   assignee        String?
   logoUrl         String?
+  notes           String?
   createdAt       DateTime  @default(now())
   completedAt     DateTime?
   tags            TaskTag[]
@@ -55,4 +56,29 @@ model TaskTag {
   tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@id([taskId, tagId])
+}
+
+model DashboardMetric {
+  id                  String   @id @default(uuid())
+  date                DateTime @default(now())
+  leadsTrafego        Int      @default(0)
+  leadsIndicacao      Int      @default(0)
+  reunioesAgendadas   Int      @default(0)
+  reunioesRealizadas  Int      @default(0)
+  vendasQtd           Int      @default(0)
+  faturamento         Float    @default(0)
+  investimentoTrafego Float    @default(0)
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model DashboardGoal {
+  id                  String   @id @default(uuid())
+  leads               Int      @default(1000)
+  reunioesAgendadas   Int      @default(200)
+  reunioesRealizadas  Int      @default(150)
+  faturamento         Float    @default(50000)
+  
+  updatedAt           DateTime @updatedAt
 }
